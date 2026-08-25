@@ -1,6 +1,8 @@
 # R GUI 2 - Made with Qt
 
-Suggested donation of 1 GBP: [![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-blue.svg)](https://buymeacoffee.com/pacha)
+Suggested donation of 1 GBP
+
+[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-blue.svg)](https://buymeacoffee.com/pacha)
 
 ## Goals 
 
