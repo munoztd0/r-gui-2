@@ -1,5 +1,7 @@
 # R GUI 2 - Made with Qt
 
+Suggested donation of 1 GBP: [![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-blue.svg)](https://buymeacoffee.com/pacha)
+
 ## Goals 
 
 R GUI 2 is a lightweight Integrated Development Environment (IDE) for the R Programming Language, built using the Qt framework, with the goal of providing a minimal expansion over the R GUI for Windows but multiplatform (Linux, Windows, MacOS or anything that supports Qt and can build C++ code).
