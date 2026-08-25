@@ -29,6 +29,7 @@ Unicode True
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 !include "Sections.nsh"
+!include "WinMessages.nsh"
 
 Var Rscript
 
@@ -136,6 +137,13 @@ Section "R ${R_VERSION} with OpenBLAS" SecR
   File "/oname=R-installer.exe" "staging\R-installer.exe"
   ExecWait '"$TEMP\R-installer.exe" /VERYSILENT /NORESTART /DIR="$PROGRAMFILES64\R\R-${R_VERSION}"'
   Delete "$TEMP\R-installer.exe"
+
+  ; Set R_HOME in the system environment so rgui2 can locate Rterm.exe
+  ; without R needing to be on PATH (the silent installer does not add it).
+  WriteRegExpandStr HKLM \
+    "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" \
+    "R_HOME" "$PROGRAMFILES64\R\R-${R_VERSION}"
+  SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
   DetailPrint "Replacing BLAS with OpenBLAS..."
   SetOutPath "$PROGRAMFILES64\R\R-${R_VERSION}\bin\x64"
