@@ -79,7 +79,7 @@ echo "Installing jsonlite..."
 R -e "if (!require('jsonlite', quietly=TRUE)) install.packages('jsonlite', repos='https://cloud.r-project.org')"
 
 echo "Installing rgui R package..."
-R CMD INSTALL rgui2_0.1.0.tar.gz
+R CMD INSTALL rgui2_0.2.0.tar.gz
 
 echo "All dependencies found!"
 

@@ -25,9 +25,10 @@ InstallDirRegKey HKLM "${REG_APP_KEY}" "InstallLocation"
 RequestExecutionLevel admin
 Unicode True
 
-; ── Modern UI ────────────────────────────────────────────────────────────────
+; -- Modern UI ----------------------------------------------------------------
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "Sections.nsh"
 
 Var Rscript
 
@@ -43,20 +44,20 @@ Var Rscript
 !define MUI_FINISHPAGE_RUN_TEXT    "Launch R GUI 2"
 !define MUI_FINISHPAGE_SHOWREADME  "$INSTDIR\README.md"
 
-; ── Installer pages ───────────────────────────────────────────────────────────
+; -- Installer pages -----------------------------------------------------------
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 
-; ── Uninstaller pages ─────────────────────────────────────────────────────────
+; -- Uninstaller pages ---------------------------------------------------------
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
 !insertmacro MUI_LANGUAGE "English"
 
-; ── Version metadata embedded in the EXE ──────────────────────────────────────
+; -- Version metadata embedded in the EXE --------------------------------------
 VIProductVersion "${APP_VERSION}.0"
 VIAddVersionKey "ProductName"     "${APP_NAME}"
 VIAddVersionKey "ProductVersion"  "${APP_VERSION}"
@@ -65,40 +66,42 @@ VIAddVersionKey "FileDescription" "${APP_NAME} Installer"
 VIAddVersionKey "FileVersion"     "${APP_VERSION}"
 VIAddVersionKey "LegalCopyright"  "(c) ${APP_PUBLISHER}"
 
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 ; Main install section
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 Section "R GUI 2 (required)" SecMain
   SectionIn RO   ; cannot be deselected
 
-  ; ── Application files (exe + Qt6 DLLs + MinGW runtime) ──────────────────
+  ; -- Application files (exe + Qt6 DLLs + MinGW runtime) ------------------
   SetOutPath "$INSTDIR"
   File /r "staging\*.*"
 
   ; README (for MUI finish page)
   File "..\README.md"
 
-  ; ── Gogh colour themes ───────────────────────────────────────────────────
+  ; -- Gogh colour themes ---------------------------------------------------
   SetOutPath "$INSTDIR\gogh-themes"
   File /r "staging\gogh-themes\*.*"
 
-  ; ── Bundled fonts ────────────────────────────────────────────────────────
+  ; -- Bundled fonts --------------------------------------------------------
   SetOutPath "$INSTDIR\fonts"
   File /r "staging\fonts\*.*"
 
-  ; ── rgui2 R companion package source (for post-install R setup) ──────────
+  ; -- rgui2 R companion package source (for post-install R setup) ----------
   SetOutPath "$INSTDIR\rgui2pkg"
   File /r "staging\rgui2pkg\*.*"
 
+  ; -- rgui2 pre-built package tarball ---------------------------------------
   SetOutPath "$INSTDIR"
+  File "staging\rgui2pkg.tar.gz"
 
-  ; ── Shortcuts ────────────────────────────────────────────────────────────
+  ; -- Shortcuts ------------------------------------------------------------
   CreateDirectory "$SMPROGRAMS\R GUI 2"
   CreateShortcut  "$SMPROGRAMS\R GUI 2\R GUI 2.lnk"           "$INSTDIR\${APP_EXE}"
   CreateShortcut  "$SMPROGRAMS\R GUI 2\Uninstall R GUI 2.lnk" "$INSTDIR\uninstall.exe"
   CreateShortcut  "$DESKTOP\R GUI 2.lnk"                      "$INSTDIR\${APP_EXE}"
 
-  ; ── Registry (Add/Remove Programs) ──────────────────────────────────────
+  ; -- Registry (Add/Remove Programs) --------------------------------------
   WriteRegStr   HKLM "${REG_APP_KEY}"    "InstallLocation"   "$INSTDIR"
   WriteRegStr   HKLM "${REG_UNINST_KEY}" "DisplayName"       "${APP_NAME}"
   WriteRegStr   HKLM "${REG_UNINST_KEY}" "DisplayVersion"    "${APP_VERSION}"
@@ -110,15 +113,15 @@ Section "R GUI 2 (required)" SecMain
   WriteRegDWORD HKLM "${REG_UNINST_KEY}" "NoModify"          1
   WriteRegDWORD HKLM "${REG_UNINST_KEY}" "NoRepair"          1
 
-  ; ── Write uninstaller ────────────────────────────────────────────────────
+  ; -- Write uninstaller ----------------------------------------------------
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
 
 SectionEnd
 
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 ; R + OpenBLAS
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 Section "R ${R_VERSION} with OpenBLAS" SecR
 
   DetailPrint "Installing R ${R_VERSION}..."
@@ -131,16 +134,11 @@ Section "R ${R_VERSION} with OpenBLAS" SecR
   SetOutPath "$PROGRAMFILES64\R\R-${R_VERSION}\bin\x64"
   File "staging\r-openblas\*.dll"
 
-  DetailPrint "Installing rgui2 R package..."
-  System::Call 'Kernel32::SetEnvironmentVariableA(t "RGUI2_PKG", t "$INSTDIR\rgui2pkg") i'
-  StrCpy $Rscript "$PROGRAMFILES64\R\R-${R_VERSION}\bin\Rscript.exe"
-  nsExec::ExecToLog '"$Rscript" -e "install.packages(Sys.getenv(\"RGUI2_PKG\"), repos=NULL, type=\"source\")"'
-
 SectionEnd
 
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 ; Rtools 4.5
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 Section "Rtools 4.5 (compiler toolchain for R packages)" SecRTools
 
   DetailPrint "Installing Rtools 4.5..."
@@ -151,9 +149,24 @@ Section "Rtools 4.5 (compiler toolchain for R packages)" SecRTools
 
 SectionEnd
 
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
+; Install rgui2 R package (hidden; runs after Rtools; skipped if R not selected)
+; ===============================================================================
+Section "-Install rgui2 R package"
+  SectionIn RO
+
+  ${If} ${SectionIsSelected} ${SecR}
+    DetailPrint "Installing rgui2 R package..."
+    System::Call 'Kernel32::SetEnvironmentVariableA(t "RGUI2_PKG", t "$INSTDIR\rgui2pkg.tar.gz") i'
+    StrCpy $Rscript "$PROGRAMFILES64\R\R-${R_VERSION}\bin\Rscript.exe"
+    nsExec::ExecToLog '"$Rscript" -e "install.packages(Sys.getenv(\"RGUI2_PKG\"), repos=NULL, type=\"source\")"'
+  ${EndIf}
+
+SectionEnd
+
+; ===============================================================================
 ; Uninstaller
-; ═══════════════════════════════════════════════════════════════════════════════
+; ===============================================================================
 Section "Uninstall"
 
   ; Remove application directory
@@ -169,7 +182,7 @@ Section "Uninstall"
 
 SectionEnd
 
-; ── Section descriptions (shown on the components page) ───────────────────────
+; -- Section descriptions (shown on the components page) -----------------------
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain}    "R GUI 2 application files (required)."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecR}       "R ${R_VERSION} with OpenBLAS high-performance BLAS. Installs to Program Files\R\R-${R_VERSION}."

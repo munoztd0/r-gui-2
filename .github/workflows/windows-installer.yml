@@ -6,11 +6,11 @@ on:
       version:
         description: 'Version string (e.g. 1.2.3)'
         required: false
-        default: '0.1.0'
+        default: '0.2.0'
       r_version:
-        description: 'R version to bundle (e.g. 4.5.1)'
+        description: 'R version to bundle (e.g. 4.6.1)'
         required: false
-        default: '4.5.1'
+        default: '4.6.1'
 
 jobs:
   build-windows:
@@ -95,6 +95,16 @@ jobs:
             Write-Error "Could not find RTools 4.5 installer on CRAN"; exit 1
           }
 
+      - name: Download rgui2 R package tarball
+        shell: pwsh
+        run: |
+          $ver   = "${{ inputs.version }}"
+          $parts = $ver -split '\.'
+          $tag   = "v$($parts[0]).$($parts[1])"
+          $url   = "https://github.com/pachadotdev/r-gui-2/releases/download/${tag}/rgui2_${ver}.tar.gz"
+          Write-Host "Downloading rgui2 package from ${url}"
+          Invoke-WebRequest -Uri $url -OutFile installer\staging\rgui2pkg.tar.gz
+
       - name: Download and stage OpenBLAS DLLs
         shell: pwsh
         env:
@@ -103,10 +113,11 @@ jobs:
           $rel = Invoke-RestMethod `
             "https://api.github.com/repos/OpenMathLib/OpenBLAS/releases/latest" `
             -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
-          $asset = $rel.assets |
-            Where-Object { $_.name -match 'x86_64' -and $_.name -match '\.zip$' } |
-            Select-Object -First 1
-          if (-not $asset) { Write-Error "No OpenBLAS x86_64 zip asset found"; exit 1 }
+          $asset = $rel.assets | Where-Object { $_.name -match '^OpenBLAS-[\d.]+-x64-64\.zip$' } | Select-Object -First 1
+          if (-not $asset) {
+            $asset = $rel.assets | Where-Object { $_.name -match '^OpenBLAS-[\d.]+\.zip$' } | Select-Object -First 1
+          }
+          if (-not $asset) { Write-Error "No OpenBLAS zip asset found"; exit 1 }
 
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$env:TEMP\openblas.zip"
           Expand-Archive "$env:TEMP\openblas.zip" -DestinationPath "$env:TEMP\openblas"
