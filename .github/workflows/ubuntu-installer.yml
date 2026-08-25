@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      # ── 1. Source code ────────────────────────────────────────────────────
+      # -- 1. Source code ----------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Build environment ──────────────────────────────────────────────
+      # -- 2. Build environment ----------------------------------------------
       # Ubuntu 24.04 (Noble) ships all three Qt6 dev packages in universe,
       # so no external Qt installer is needed.
       # r-base-dev is required so CMake can call `R CMD config --ldflags`.
@@ -32,7 +32,7 @@ jobs:
             r-base \
             r-base-dev
 
-      # ── 3. Configure & build ──────────────────────────────────────────────
+      # -- 3. Configure & build ----------------------------------------------
       - name: Configure CMake
         run: |
           cmake -S . -B build \
@@ -41,7 +41,7 @@ jobs:
       - name: Build
         run: cmake --build build -j$(nproc)
 
-      # ── 4. Create DEB package ─────────────────────────────────────────────
+      # -- 4. Create DEB package ---------------------------------------------
       # gogh-themes and fonts are installed next to the binary (per cmake
       # install rules), so they land at /usr/bin/gogh-themes and /usr/bin/fonts
       # which is where the runtime expects to find them (./gogh-themes relative
@@ -83,7 +83,7 @@ jobs:
 
           dpkg-deb --build $PKG r-gui-2-${{ inputs.version }}-ubuntu.deb
 
-      # ── 5. Upload artifact ────────────────────────────────────────────────
+      # -- 5. Upload artifact ------------------------------------------------
       - name: Upload DEB package
         uses: actions/upload-artifact@v4
         with:

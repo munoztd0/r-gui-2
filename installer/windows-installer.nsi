@@ -14,6 +14,10 @@
 !define REG_UNINST_KEY  "Software\Microsoft\Windows\CurrentVersion\Uninstall\R-GUI-2"
 !define REG_APP_KEY     "Software\R-GUI-2"
 
+!ifndef R_VERSION
+  !define R_VERSION "4.5.1"
+!endif
+
 Name          "${APP_NAME} ${APP_VERSION}"
 OutFile       "R-GUI-2-${APP_VERSION}-Setup.exe"
 InstallDir    "$PROGRAMFILES64\R GUI 2"
@@ -25,13 +29,15 @@ Unicode True
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 
+Var Rscript
+
 !define MUI_ABORTWARNING
 !define MUI_ICON   "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
 !define MUI_WELCOMEPAGE_TEXT \
   "This wizard will install ${APP_NAME} ${APP_VERSION} on your computer.$\r$\n$\r$\n\
    R GUI 2 is a lightweight Qt-based IDE for the R programming language.$\r$\n$\r$\n\
-   R must already be installed. Download it from https://www.r-project.org before using R GUI 2.$\r$\n$\r$\n\
+   This installer bundles R ${R_VERSION} with OpenBLAS, Rtools 4.5, and the rgui2 R package.$\r$\n$\r$\n\
    Click Next to continue."
 !define MUI_FINISHPAGE_RUN         "$INSTDIR\${APP_EXE}"
 !define MUI_FINISHPAGE_RUN_TEXT    "Launch R GUI 2"
@@ -39,6 +45,7 @@ Unicode True
 
 ; ── Installer pages ───────────────────────────────────────────────────────────
 !insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -57,21 +64,6 @@ VIAddVersionKey "CompanyName"     "${APP_PUBLISHER}"
 VIAddVersionKey "FileDescription" "${APP_NAME} Installer"
 VIAddVersionKey "FileVersion"     "${APP_VERSION}"
 VIAddVersionKey "LegalCopyright"  "(c) ${APP_PUBLISHER}"
-
-; ═══════════════════════════════════════════════════════════════════════════════
-; Helper: check that R is installed (warns, does NOT block install)
-; ═══════════════════════════════════════════════════════════════════════════════
-Function CheckRInstalled
-  nsExec::ExecToStack 'where Rscript'
-  Pop $0  ; exit code
-  Pop $1  ; stdout
-  ${If} $0 != 0
-    MessageBox MB_ICONINFORMATION|MB_OK \
-      "R was not found on your PATH.$\r$\n$\r$\n\
-       Please install R from https://www.r-project.org and re-run this installer, \
-       or install R after this installer completes and then run:$\r$\n$\r$"
-  ${EndIf}
-FunctionEnd
 
 ; ═══════════════════════════════════════════════════════════════════════════════
 ; Main install section
@@ -121,10 +113,41 @@ Section "R GUI 2 (required)" SecMain
   ; ── Write uninstaller ────────────────────────────────────────────────────
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
-  ; ── Install rgui2 R package if R is present ───────────────────────────────
-  Call CheckRInstalled
-  nsExec::ExecToLog \
-    'Rscript -e "install.packages(\"$INSTDIR\\rgui2pkg\", repos=NULL, type=\"source\")"'
+
+SectionEnd
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; R + OpenBLAS
+; ═══════════════════════════════════════════════════════════════════════════════
+Section "R ${R_VERSION} with OpenBLAS" SecR
+
+  DetailPrint "Installing R ${R_VERSION}..."
+  SetOutPath "$TEMP"
+  File "/oname=R-installer.exe" "staging\R-installer.exe"
+  ExecWait '"$TEMP\R-installer.exe" /VERYSILENT /NORESTART /DIR="$PROGRAMFILES64\R\R-${R_VERSION}"'
+  Delete "$TEMP\R-installer.exe"
+
+  DetailPrint "Replacing BLAS with OpenBLAS..."
+  SetOutPath "$PROGRAMFILES64\R\R-${R_VERSION}\bin\x64"
+  File "staging\r-openblas\*.dll"
+
+  DetailPrint "Installing rgui2 R package..."
+  System::Call 'Kernel32::SetEnvironmentVariableA(t "RGUI2_PKG", t "$INSTDIR\rgui2pkg") i'
+  StrCpy $Rscript "$PROGRAMFILES64\R\R-${R_VERSION}\bin\Rscript.exe"
+  nsExec::ExecToLog '"$Rscript" -e "install.packages(Sys.getenv(\"RGUI2_PKG\"), repos=NULL, type=\"source\")"'
+
+SectionEnd
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; Rtools 4.5
+; ═══════════════════════════════════════════════════════════════════════════════
+Section "Rtools 4.5 (compiler toolchain for R packages)" SecRTools
+
+  DetailPrint "Installing Rtools 4.5..."
+  SetOutPath "$TEMP"
+  File "/oname=rtools-installer.exe" "staging\rtools-installer.exe"
+  ExecWait '"$TEMP\rtools-installer.exe" /VERYSILENT /NORESTART'
+  Delete "$TEMP\rtools-installer.exe"
 
 SectionEnd
 
@@ -145,3 +168,10 @@ Section "Uninstall"
   DeleteRegKey HKLM "${REG_APP_KEY}"
 
 SectionEnd
+
+; ── Section descriptions (shown on the components page) ───────────────────────
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain}    "R GUI 2 application files (required)."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecR}       "R ${R_VERSION} with OpenBLAS high-performance BLAS. Installs to Program Files\R\R-${R_VERSION}."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecRTools}  "Rtools 4.5 — compiler toolchain needed to install R packages from source."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END

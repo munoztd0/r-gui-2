@@ -7,6 +7,10 @@ on:
         description: 'Version string (e.g. 1.2.3)'
         required: false
         default: '0.1.0'
+      r_version:
+        description: 'R version to bundle (e.g. 4.5.1)'
+        required: false
+        default: '4.5.1'
 
 jobs:
   build-windows:
@@ -14,11 +18,11 @@ jobs:
     runs-on: windows-2025-vs2026
 
     steps:
-      # ── 1. Source code ────────────────────────────────────────────────────
+      # -- 1. Source code ----------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Qt6 + WebEngine (MSVC build from Qt's official mirrors) ────────
+      # -- 2. Qt6 + WebEngine (MSVC build from Qt's official mirrors) --------
       # Qt WebEngine requires MSVC on Windows (Chromium is MSVC-only).
       # aqtinstall provides pre-built binaries matching the official Qt installer.
       - name: Install Qt6 with WebEngine
@@ -30,20 +34,20 @@ jobs:
           arch: 'win64_msvc2022_64'
           modules: 'qtwebengine qtwebchannel qtpositioning'
 
-      # ── 3. MSVC x64 developer environment ────────────────────────────────
+      # -- 3. MSVC x64 developer environment --------------------------------
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      # ── 4. Derive version string ──────────────────────────────────────────
+      # -- 4. Derive version string ------------------------------------------
       - name: Compute version
         id: version
         shell: bash
         run: |
           echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
 
-      # ── 5. Configure & build ──────────────────────────────────────────────
+      # -- 5. Configure & build ----------------------------------------------
       - name: Configure CMake
         shell: pwsh
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -52,7 +56,7 @@ jobs:
         shell: pwsh
         run: cmake --build build -j $env:NUMBER_OF_PROCESSORS
 
-      # ── 6. Stage application files ────────────────────────────────────────
+      # -- 6. Stage application files ----------------------------------------
       - name: Deploy Qt DLLs (windeployqt6)
         shell: pwsh
         run: |
@@ -69,7 +73,56 @@ jobs:
           Copy-Item -Recurse fonts        installer\staging\fonts
           Copy-Item -Recurse rgui2pkg     installer\staging\rgui2pkg
 
-      # ── 7. NSIS installer ─────────────────────────────────────────────────
+      # -- 7. Bundle R, OpenBLAS, and RTools ---------------------------------
+      - name: Download R installer
+        shell: pwsh
+        run: |
+          $rVer = "${{ inputs.r_version }}"
+          $url = "https://cran.r-project.org/bin/windows/base/R-${rVer}-win.exe"
+          Write-Host "Downloading R ${rVer} from ${url}"
+          Invoke-WebRequest -Uri $url -OutFile installer\staging\R-installer.exe
+
+      - name: Download RTools 4.5 installer
+        shell: pwsh
+        run: |
+          $page = (Invoke-WebRequest "https://cran.r-project.org/bin/windows/Rtools/rtools45/files/").Content
+          if ($page -match 'href="(rtools45[^"]+\.exe)"') {
+            $file = $matches[1]
+            $url  = "https://cran.r-project.org/bin/windows/Rtools/rtools45/files/$file"
+            Write-Host "Downloading RTools from ${url}"
+            Invoke-WebRequest -Uri $url -OutFile installer\staging\rtools-installer.exe
+          } else {
+            Write-Error "Could not find RTools 4.5 installer on CRAN"; exit 1
+          }
+
+      - name: Download and stage OpenBLAS DLLs
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $rel = Invoke-RestMethod `
+            "https://api.github.com/repos/OpenMathLib/OpenBLAS/releases/latest" `
+            -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
+          $asset = $rel.assets |
+            Where-Object { $_.name -match 'x86_64' -and $_.name -match '\.zip$' } |
+            Select-Object -First 1
+          if (-not $asset) { Write-Error "No OpenBLAS x86_64 zip asset found"; exit 1 }
+
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$env:TEMP\openblas.zip"
+          Expand-Archive "$env:TEMP\openblas.zip" -DestinationPath "$env:TEMP\openblas"
+
+          $dlls = Get-ChildItem "$env:TEMP\openblas" -Recurse -Filter "*.dll"
+          if (-not $dlls) { Write-Error "No DLLs found in OpenBLAS release"; exit 1 }
+
+          New-Item -ItemType Directory -Force installer\staging\r-openblas | Out-Null
+          foreach ($dll in $dlls) {
+            $dest = if ($dll.Name -eq "libopenblas.dll") { "Rblas.dll" } else { $dll.Name }
+            Copy-Item $dll.FullName "installer\staging\r-openblas\$dest"
+          }
+          Write-Host "Staged OpenBLAS DLLs:"
+          Get-ChildItem installer\staging\r-openblas
+
+      # -- 8. NSIS installer -------------------------------------------------
       - name: Install NSIS
         shell: pwsh
         run: |
@@ -81,9 +134,10 @@ jobs:
         run: >
           makensis
           /DAPP_VERSION=${{ steps.version.outputs.version }}
+          /DR_VERSION=${{ inputs.r_version }}
           installer\windows-installer.nsi
 
-      # ── 8. Publish artifacts ──────────────────────────────────────────────
+      # -- 8. Publish artifacts ----------------------------------------------
       - name: Upload installer as workflow artifact
         uses: actions/upload-artifact@v4
         with:
