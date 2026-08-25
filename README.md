@@ -32,7 +32,14 @@ Educational purposes: When it is more complete, I will use it in my lectures/tut
 
 ## Installers
 
-I used Copilot to build an installer for Windows (I do not know much about Windows). You can download it [here]().
+I provided an installer for Windows that installs a full R setup. You can download it [here](https://github.com/pachadotdev/r-gui-2/releases/download/v0.1/R-GUI-2-0.1.0-Setup.exe).
+
+By full R setup I mean:
+
+1. R
+2. RTools (to build R packages)
+3. OpenBLAS (for faster linear algebra operations)
+4. R GUI 2
 
 ## Build and test
 
