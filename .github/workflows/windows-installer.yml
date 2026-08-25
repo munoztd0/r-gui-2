@@ -16,6 +16,8 @@ jobs:
   build-windows:
     name: Build and package for Windows
     runs-on: windows-2025-vs2026
+    permissions:
+      contents: write
 
     steps:
       # -- 1. Source code ----------------------------------------------------
@@ -155,3 +157,12 @@ jobs:
           name: R-GUI-2-${{ steps.version.outputs.version }}-Windows
           path: installer\R-GUI-2-*-Setup.exe
           if-no-files-found: error
+
+      - name: Upload installer to GitHub release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver="${{ inputs.version }}"
+          tag="v${ver%.*}"   # 0.2.0 -> v0.2
+          gh release upload "${tag}" installer/R-GUI-2-*-Setup.exe --clobber
