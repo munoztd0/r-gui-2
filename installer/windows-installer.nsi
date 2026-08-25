@@ -149,6 +149,15 @@ Section "R ${R_VERSION} with OpenBLAS" SecR
   SetOutPath "$PROGRAMFILES64\R\R-${R_VERSION}\bin\x64"
   File "staging\r-openblas\*.dll"
 
+  ; Copy pre-installed R packages (jsonlite + rgui2) — built in CI, no runtime compilation.
+  DetailPrint "Copying R packages..."
+  SetOutPath "$PROGRAMFILES64\R\R-${R_VERSION}\library"
+  File /r "staging\R-library\*"
+
+  ; Expose R_HOME in the current installer process so the finish-page
+  ; launch of rgui2.exe finds Rterm.exe without requiring a reboot.
+  System::Call 'Kernel32::SetEnvironmentVariableA(t "R_HOME", t "$PROGRAMFILES64\R\R-${R_VERSION}") i'
+
 SectionEnd
 
 ; ===============================================================================
@@ -161,24 +170,6 @@ Section "Rtools 4.5 (compiler toolchain for R packages)" SecRTools
   File "/oname=rtools-installer.exe" "staging\rtools-installer.exe"
   ExecWait '"$TEMP\rtools-installer.exe" /VERYSILENT /NORESTART'
   Delete "$TEMP\rtools-installer.exe"
-
-SectionEnd
-
-; ===============================================================================
-; Install rgui2 R package (hidden; runs after Rtools; skipped if R not selected)
-; ===============================================================================
-Section "-Install rgui2 R package"
-  SectionIn RO
-
-  ${If} ${SectionIsSelected} ${SecR}
-    DetailPrint "Installing rgui2 R package dependencies..."
-    StrCpy $Rscript "$PROGRAMFILES64\R\R-${R_VERSION}\bin\Rscript.exe"
-    nsExec::ExecToLog '"$Rscript" -e "install.packages(\"jsonlite\", repos=\"https://cloud.r-project.org\", type=\"binary\")"'
-
-    DetailPrint "Installing rgui2 R package..."
-    System::Call 'Kernel32::SetEnvironmentVariableA(t "RGUI2_PKG", t "$INSTDIR\rgui2pkg.tar.gz") i'
-    nsExec::ExecToLog '"$Rscript" -e "install.packages(Sys.getenv(\"RGUI2_PKG\"), repos=NULL, type=\"source\")"'
-  ${EndIf}
 
 SectionEnd
 

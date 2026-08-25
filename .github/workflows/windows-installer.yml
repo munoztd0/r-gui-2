@@ -113,6 +113,42 @@ jobs:
           Write-Host "Downloading rgui2 package from ${url}"
           Invoke-WebRequest -Uri $url -OutFile installer\staging\rgui2pkg.tar.gz
 
+      - name: Pre-install R packages for bundling
+        shell: pwsh
+        run: |
+          # Install R on the CI runner using the already-staged installer so
+          # packages are compiled/configured against the exact bundled R version.
+          $rCiDir  = "$env:TEMP\R_ci"
+          $installer = Join-Path $PWD "installer\staging\R-installer.exe"
+          Write-Host "Installing R on CI runner to $rCiDir..."
+          Start-Process -Wait -FilePath $installer `
+            -ArgumentList "/VERYSILENT", "/NORESTART", "/DIR=$rCiDir"
+
+          $rscript = "$rCiDir\bin\Rscript.exe"
+
+          # Install jsonlite as a pre-built Windows binary (no compilation needed)
+          Write-Host "Installing jsonlite..."
+          & $rscript -e "install.packages('jsonlite', repos='https://cloud.r-project.org', type='win.binary')"
+          if ($LASTEXITCODE -ne 0) { Write-Error "jsonlite install failed"; exit 1 }
+
+          # Install rgui2 from source (pure R package — no compiler required)
+          Write-Host "Installing rgui2..."
+          $tarball = (Join-Path $PWD "installer\staging\rgui2pkg.tar.gz") -replace '\\', '/'
+          & $rscript -e "install.packages('$tarball', repos=NULL, type='source')"
+          if ($LASTEXITCODE -ne 0) { Write-Error "rgui2 install failed"; exit 1 }
+
+          # Stage the installed package trees for NSIS to bundle
+          New-Item -ItemType Directory -Force installer\staging\R-library | Out-Null
+          foreach ($pkg in @("jsonlite", "rgui2")) {
+            $src = "$rCiDir\library\$pkg"
+            if (Test-Path $src) {
+              Copy-Item -Recurse $src installer\staging\R-library\
+              Write-Host "Staged: $pkg"
+            } else {
+              Write-Error "Package not found after install: $pkg"; exit 1
+            }
+          }
+
       - name: Download and stage OpenBLAS DLLs
         shell: pwsh
         env:
