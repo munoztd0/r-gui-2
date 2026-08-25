@@ -72,7 +72,14 @@ VIAddVersionKey "LegalCopyright"  "(c) ${APP_PUBLISHER}"
 Section "R GUI 2 (required)" SecMain
   SectionIn RO   ; cannot be deselected
 
-  ; -- Application files (exe + Qt6 DLLs + MinGW runtime) ------------------
+  ; ── Visual C++ Redistributable (VCRUNTIME140 / MSVCP140) ───────────────────
+  DetailPrint "Installing Visual C++ Redistributable..."
+  SetOutPath "$TEMP"
+  File "/oname=vc_redist.exe" "staging\vc_redist.x64.exe"
+  ExecWait '"$TEMP\vc_redist.exe" /install /quiet /norestart'
+  Delete "$TEMP\vc_redist.exe"
+
+  ; ── Application files (exe + Qt6 DLLs + MinGW runtime) ────────────────
   SetOutPath "$INSTDIR"
   File /r "staging\*.*"
 

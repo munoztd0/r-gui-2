@@ -68,6 +68,12 @@ jobs:
           # Collect all Qt6 and plugin DLLs next to the executable.
           windeployqt6 --release --compiler-runtime --dir installer\staging installer\staging\rgui2.exe
 
+      - name: Download Visual C++ Redistributable
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' `
+            -OutFile installer\staging\vc_redist.x64.exe
+
       - name: Copy runtime data (themes, fonts, R package)
         shell: pwsh
         run: |
