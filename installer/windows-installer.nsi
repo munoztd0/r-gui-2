@@ -171,9 +171,12 @@ Section "-Install rgui2 R package"
   SectionIn RO
 
   ${If} ${SectionIsSelected} ${SecR}
+    DetailPrint "Installing rgui2 R package dependencies..."
+    StrCpy $Rscript "$PROGRAMFILES64\R\R-${R_VERSION}\bin\Rscript.exe"
+    nsExec::ExecToLog '"$Rscript" -e "install.packages(\"jsonlite\", repos=\"https://cloud.r-project.org\", type=\"binary\")"'
+
     DetailPrint "Installing rgui2 R package..."
     System::Call 'Kernel32::SetEnvironmentVariableA(t "RGUI2_PKG", t "$INSTDIR\rgui2pkg.tar.gz") i'
-    StrCpy $Rscript "$PROGRAMFILES64\R\R-${R_VERSION}\bin\Rscript.exe"
     nsExec::ExecToLog '"$Rscript" -e "install.packages(Sys.getenv(\"RGUI2_PKG\"), repos=NULL, type=\"source\")"'
   ${EndIf}
 
