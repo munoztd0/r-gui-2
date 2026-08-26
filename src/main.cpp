@@ -1,9 +1,22 @@
 #include "mainwindow.h"
 #include <QApplication>
+#include <QFontDatabase>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+
+    // Load bundled Hack fonts from QRC resources so both the code editor
+    // (Qt widgets) and the xterm terminal (WebEngine) always use a readable
+    // monospace font regardless of what is installed system-wide.
+    for (const char *res : {
+            ":/xterm/hack-regular.ttf",
+            ":/xterm/hack-bold.ttf",
+            ":/xterm/hack-italic.ttf",
+            ":/xterm/hack-bolditalic.ttf"
+         }) {
+        QFontDatabase::addApplicationFont(res);
+    }
     
     app.setApplicationName("RGUI2");
     app.setApplicationVersion("0.1.0");

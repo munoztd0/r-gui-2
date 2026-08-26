@@ -49,7 +49,7 @@ By full R setup I mean:
 
 ```
 ./build.sh --clean
-./r-gui-2-launch.sh
+./build/bin/rgui2
 ```
 
 ## Package

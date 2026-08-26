@@ -420,7 +420,7 @@ void TerminalWidget::startPty()
 
     PROCESS_INFORMATION pi{};
     CreateProcessW(nullptr, wCmd.data(), nullptr, nullptr, FALSE,
-                   EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
+                   EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
                    nullptr, nullptr, &si.StartupInfo, &pi);
 
     DeleteProcThreadAttributeList(attrList);
