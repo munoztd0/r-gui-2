@@ -51,9 +51,22 @@ set(SOURCES
     src/helppane.h
 )
 
+# On Windows: embed the application icon and suppress the console window
+if(WIN32)
+    list(APPEND SOURCES src/rgui2.rc)
+endif()
 
 # Create executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+if(WIN32)
+    # WIN32 suppresses the extra console window that would otherwise
+    # appear when launching a Qt GUI application.
+    add_executable(${PROJECT_NAME} WIN32 ${SOURCES})
+    # Tell rc.exe where to resolve the icon filename used in rgui2.rc
+    set_source_files_properties(src/rgui2.rc PROPERTIES
+        COMPILE_FLAGS "/I\"${CMAKE_SOURCE_DIR}/src\"")
+else()
+    add_executable(${PROJECT_NAME} ${SOURCES})
+endif()
 
 # Link Qt libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE

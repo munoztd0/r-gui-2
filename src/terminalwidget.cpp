@@ -227,8 +227,17 @@ TerminalWidget::TerminalWidget(const QString &shell, QWidget *parent)
 #ifdef Q_OS_WIN
     // On Windows the child inherits the parent's environment via CreateProcess.
     // We set needed variables directly in the parent before spawning.
-    SetEnvironmentVariableW(L"RGUI2_ENV_FILE",
-        (QDir::tempPath() + "/rgui2_env.json").toStdWString().c_str());
+    {
+        QString tmpDir = QDir::tempPath();
+        SetEnvironmentVariableW(L"RGUI2_ENV_FILE",
+            (tmpDir + "/rgui2_env.json").toStdWString().c_str());
+        SetEnvironmentVariableW(L"RGUI2_HELP_PORT_FILE",
+            (tmpDir + "/rgui2_help_port").toStdWString().c_str());
+        SetEnvironmentVariableW(L"RGUI2_HELP_QUEUE_FILE",
+            (tmpDir + "/rgui2_help_queue").toStdWString().c_str());
+        SetEnvironmentVariableW(L"RGUI2_HELP_URL_FILE",
+            (tmpDir + "/rgui2_help_url").toStdWString().c_str());
+    }
     {
         QString base = QFileInfo(shellPath).baseName().toLower();
         if (base == "r" || base == "rterm") {
@@ -411,7 +420,7 @@ void TerminalWidget::startPty()
 
     PROCESS_INFORMATION pi{};
     CreateProcessW(nullptr, wCmd.data(), nullptr, nullptr, FALSE,
-                   EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
+                   EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
                    nullptr, nullptr, &si.StartupInfo, &pi);
 
     DeleteProcThreadAttributeList(attrList);

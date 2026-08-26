@@ -34,8 +34,8 @@ Unicode True
 Var Rscript
 
 !define MUI_ABORTWARNING
-!define MUI_ICON   "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+!define MUI_ICON   "r-gui-2.ico"
+!define MUI_UNICON "r-gui-2.ico"
 !define MUI_WELCOMEPAGE_TEXT \
   "This wizard will install ${APP_NAME} ${APP_VERSION} on your computer.$\r$\n$\r$\n\
    R GUI 2 is a lightweight Qt-based IDE for the R programming language.$\r$\n$\r$\n\
@@ -43,7 +43,6 @@ Var Rscript
    Click Next to continue."
 !define MUI_FINISHPAGE_RUN         "$INSTDIR\${APP_EXE}"
 !define MUI_FINISHPAGE_RUN_TEXT    "Launch R GUI 2"
-!define MUI_FINISHPAGE_SHOWREADME  "$INSTDIR\README.md"
 
 ; -- Installer pages -----------------------------------------------------------
 !insertmacro MUI_PAGE_WELCOME
